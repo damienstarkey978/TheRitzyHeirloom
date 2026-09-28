@@ -10,7 +10,8 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: "The Ritzy Heirloom",
-  description: "An antique shop in Neptune Beach, Florida.",
+  description:
+    "A boutique shop in Neptune Beach, Florida, filled with antiques, vintage finds, fine art, European and English pieces, antique French fabrics and wallpapers, and one-of-a-kind treasures.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
