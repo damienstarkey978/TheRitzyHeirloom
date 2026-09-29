@@ -52,14 +52,14 @@ export default function Home() {
           fine art, European and English pieces, antique French fabrics and
           wallpapers, and one-of-a-kind treasures.
         </p>
-        <section aria-labelledby="what-we-do" className="mt-4 w-full sm:mt-5">
+        <section aria-labelledby="what-we-do" className="mt-10 w-full sm:mt-14">
           <h2
             id="what-we-do"
             className="text-center text-[0.65rem] tracking-[0.22em] text-black uppercase sm:text-xs"
           >
             What we do
           </h2>
-          <ul className="mt-3 grid gap-x-8 gap-y-2.5 sm:mt-4 sm:grid-cols-2 sm:gap-y-3 lg:grid-cols-3">
+          <ul className="mt-3 grid gap-x-8 gap-y-6 sm:mt-4 sm:grid-cols-2 sm:gap-y-8 lg:grid-cols-3">
             {offerings.map((offering) => (
               <li key={offering.title}>
                 <h3 className="text-[0.8125rem] leading-5 text-black sm:text-sm">
@@ -72,7 +72,7 @@ export default function Home() {
             ))}
           </ul>
         </section>
-        <p className="mt-4 text-center text-[0.65rem] tracking-[0.16em] text-black uppercase sm:mt-5 sm:text-xs">
+        <p className="mt-8 text-center text-[0.65rem] tracking-[0.16em] text-black uppercase sm:mt-10 sm:text-xs">
           Browse. Discover. Take a little history home.
         </p>
       </div>
