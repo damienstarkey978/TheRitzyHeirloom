@@ -19,4 +19,4 @@ The development server listens on port 4721 at [http://localhost:4721](http://lo
 npm run build
 ```
 
-`npm run build` writes a static site to `out/`. GitHub Pages publishes `main` from this repository at [https://damienstarkey978.github.io/TheRitzyHeirloom/](https://damienstarkey978.github.io/TheRitzyHeirloom/).
+`npm run build` writes a static site to `out/`. GitHub Pages publishes `main` from this repository at [https://ritzyheirloom.com](https://ritzyheirloom.com).

@@ -29,8 +29,8 @@ jobs:
         run: npm ci
       - name: Build static site
         run: npx next build
-        env:
-          PAGES_BASE_PATH: /TheRitzyHeirloom
+      - name: Add custom domain
+        run: printf '%s\n' ritzyheirloom.com > out/CNAME
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

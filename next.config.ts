@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Project Pages site is served at /TheRitzyHeirloom. Local dev leaves this unset.
+// GitHub Pages serves the custom domain from /. Leave PAGES_BASE_PATH unset for that.
 const basePath = process.env.PAGES_BASE_PATH || "";
 
 const nextConfig: NextConfig = {
