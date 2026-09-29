@@ -46,9 +46,6 @@ export default function Home() {
           priority
           className="h-auto w-full max-w-[16.5rem] sm:max-w-lg"
         />
-        <p className="mt-2 text-center text-xs tracking-[0.18em] text-black uppercase sm:mt-3 sm:text-sm">
-          Neptune Beach, Florida
-        </p>
         <div aria-hidden="true" className="mt-3 h-px w-10 bg-gold sm:mt-4 sm:w-12" />
         <p className="mt-3 max-w-2xl text-center text-[0.8125rem] leading-5 text-black sm:mt-4 sm:text-base sm:leading-6">
           A beautifully designed boutique shop filled with antiques, vintage finds,
