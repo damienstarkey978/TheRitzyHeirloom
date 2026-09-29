@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+const basePath = process.env.PAGES_BASE_PATH ?? "";
+
 const offerings = [
   {
     title: "Curated Antiques & Vintage Finds",
@@ -37,7 +39,7 @@ export default function Home() {
       <div className="m-auto flex w-full max-w-5xl flex-col items-center">
         <h1 className="sr-only">The Ritzy Heirloom</h1>
         <Image
-          src="/logo.jpg"
+          src={`${basePath}/logo.jpg`}
           alt="The Ritzy Heirloom"
           width={1499}
           height={468}
