@@ -55,6 +55,30 @@ export function gateToken() {
   return createHmac("sha256", sessionSecret()).update(`gate:${password}`).digest("hex");
 }
 
+function positiveInt(name: string, fallback: number, max: number) {
+  const raw = Number(process.env[name] ?? fallback);
+  if (!Number.isInteger(raw) || raw < 1) return fallback;
+  return Math.min(raw, max);
+}
+
+export function aiLookupDailyLimit() {
+  return positiveInt("AI_LOOKUP_DAILY_LIMIT", 40, 500);
+}
+
+export function aiMaxSearches() {
+  return positiveInt("AI_MAX_SEARCHES", 5, 8);
+}
+
+export function aiMaxImages() {
+  return positiveInt("AI_MAX_IMAGES", 4, 6);
+}
+
+export function aiTimeoutMs() {
+  const raw = Number(process.env.AI_TIMEOUT_MS ?? 45000);
+  if (!Number.isFinite(raw) || raw < 5000) return 45000;
+  return Math.min(Math.floor(raw), 55000);
+}
+
 export function cookieSecure() {
   if (process.env.RITZY_COOKIE_SECURE === "1") return true;
   if (process.env.RITZY_COOKIE_SECURE === "0") return false;

@@ -4,7 +4,8 @@ import fs from "node:fs";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MAX_UPLOAD_FILES, maxUploadBytes } from "@/lib/config";
+import { aiMaxImages, MAX_UPLOAD_FILES, maxUploadBytes } from "@/lib/config";
+import { combineEstimates } from "@/lib/estimate";
 import { searchAskingByImage, searchAskingPrices } from "@/lib/ebay";
 import { researchPiece } from "@/lib/research";
 import { requireUser } from "@/lib/session";
@@ -13,6 +14,8 @@ import { createPieceWithPhotos } from "@/lib/drafts";
 import {
   addPiecePhoto,
   changePassword,
+  countAiLookupsSince,
+  shopPeriodStart,
   deletePiece,
   getLookup,
   getPiece,
@@ -177,14 +180,14 @@ export async function deletePieceAction(formData: FormData) {
   redirect("/admin/pieces");
 }
 
-async function lookupJpeg(filename: string) {
+async function lookupJpeg(filename: string, edge: number) {
   const full = uploadPath(filename);
   if (!full) return null;
   const sharp = (await import("sharp")).default;
   return sharp(fs.readFileSync(full))
     .rotate()
-    .resize({ width: 500, height: 500, fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 70 })
+    .resize({ width: edge, height: edge, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: edge > 500 ? 75 : 70 })
     .toBuffer();
 }
 
@@ -209,32 +212,78 @@ export async function lookupValueAction(formData: FormData) {
   if (!(await formIsTrusted(formData))) redirect(`/admin/pieces/${id}?error=form`);
   const keyword = await searchAskingPrices(piece.title === "Untitled piece" ? "" : piece.title);
   let image = { listings: [] as AskingListing[], error: "" };
-  let imageBase64 = "";
+  const images: string[] = [];
   const cover = piece.photos[0]?.filename;
   if (cover) {
     try {
-      const jpeg = await lookupJpeg(cover);
-      if (jpeg) {
-        imageBase64 = jpeg.toString("base64");
-        image = await searchAskingByImage(jpeg);
-      }
+      const jpeg = await lookupJpeg(cover, 500);
+      if (jpeg) image = await searchAskingByImage(jpeg);
     } catch {
       image = { listings: [], error: "The photo could not be sent for lookup." };
+    }
+  }
+  for (const photo of piece.photos.slice(0, aiMaxImages())) {
+    try {
+      const jpeg = await lookupJpeg(photo.filename, 1024);
+      if (jpeg) images.push(jpeg.toString("base64"));
+    } catch {
+      /* a photo the desk cannot read is skipped */
     }
   }
   const research = await researchPiece({
     title: piece.title,
     notes: [piece.description, piece.story, piece.maker, piece.material, piece.era].filter(Boolean).join("\n"),
-    imageBase64,
+    images,
+    lookupsToday: countAiLookupsSince(shopPeriodStart("day")),
   });
   const listings = mergeListings([keyword.listings, image.listings]);
   const problems = [...new Set([keyword.error, image.error].filter(Boolean))];
-  const note = problems.length
+  const ebayNote = problems.length
     ? problems.join(" ")
     : listings.length
       ? `Based on ${listings.length} current asking prices. These are not sold prices.`
       : "No current asking prices came back.";
-  insertLookup(id, { query: piece.title, listings, research, note });
+  const aiReady = research.called === true && !research.note;
+  let note = ebayNote;
+  let range: { low: number; typical: number; high: number; count: number } | null | undefined;
+  if (aiReady) {
+    const usd = (kind: "sold" | "asking") =>
+      (research.comparables ?? [])
+        .filter((item) => item.kind === kind && item.currency === "USD")
+        .map((item) => item.priceCents);
+    const blended = combineEstimates({
+      sold: usd("sold"),
+      webAsking: usd("asking"),
+      ebayAsking: listings
+        .filter((listing) => listing.currency === "USD" && listing.priceCents != null)
+        .map((listing) => listing.priceCents as number),
+    });
+    research.estimate = blended;
+    range = blended
+      ? {
+          low: blended.low,
+          typical: blended.typical,
+          high: blended.high,
+          count: blended.usedSold + blended.usedWebAsking + blended.usedEbay,
+        }
+      : null;
+    note = blended ? blended.method : "No comparable prices came back.";
+    if (problems.length) note = `${problems.join(" ")} ${note}`;
+  }
+  insertLookup(id, {
+    query: piece.title,
+    listings,
+    research,
+    note,
+    ...(aiReady ? { range } : {}),
+    usage: {
+      inputTokens: research.usage?.inputTokens ?? 0,
+      outputTokens: research.usage?.outputTokens ?? 0,
+      searchCount: research.usage?.searchCount ?? 0,
+      costMicros: research.usage?.costMicros ?? 0,
+      aiCalled: research.called === true,
+    },
+  });
   refresh(id);
   redirect(`/admin/pieces/${id}?lookup=1`);
 }
@@ -248,23 +297,28 @@ export async function acceptLookupAction(formData: FormData) {
   if (!piece || !lookup || lookup.piece_id !== piece.id) redirect("/admin/pieces");
   if (!(await formIsTrusted(formData))) redirect(`/admin/pieces/${id}?error=form`);
   const research = lookup.research;
+  const field = String(formData.get("field") ?? "");
+  if (field && field !== "title" && field !== "description" && field !== "history") {
+    redirect(`/admin/pieces/${id}`);
+  }
+  const legacy = field === "";
   updatePiece(id, {
-    title: piece.title,
-    description: research.description || piece.description,
-    story: research.history || piece.story,
-    era: research.era || piece.era,
+    title: field === "title" ? research.title || piece.title : piece.title,
+    description: legacy || field === "description" ? research.description || piece.description : piece.description,
+    story: legacy || field === "history" ? research.history || piece.story : piece.story,
+    era: legacy ? research.era || piece.era : piece.era,
     size: piece.size,
     askForPrice: piece.ask_for_price === 1,
     priceCents: piece.price_cents,
     sold: piece.sold === 1,
     published: piece.published === 1,
     status: piece.status,
-    maker: research.maker || piece.maker,
-    material: research.material || piece.material,
+    maker: field === "" ? research.maker || piece.maker : piece.maker,
+    material: field === "" ? research.material || piece.material : piece.material,
     category: piece.category,
     condition: piece.condition,
     tags: piece.tags,
-    dimensions: piece.dimensions,
+    dimensions: field === "" ? research.dimensions || piece.dimensions : piece.dimensions,
     barcode: piece.barcode,
     location: piece.location,
     costCents: piece.cost_cents,

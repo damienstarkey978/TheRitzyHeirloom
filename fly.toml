@@ -12,6 +12,12 @@ primary_region = "iad"
   RITZY_DATABASE_DRIVER = "sqlite"
   RITZY_FILE_DRIVER = "local"
   RITZY_EMAIL_DRIVER = "off"
+  AI_PROVIDER = "anthropic"
+  AI_MODEL = "claude-sonnet-5-5"
+  AI_LOOKUP_DAILY_LIMIT = "40"
+  AI_MAX_SEARCHES = "5"
+  AI_MAX_IMAGES = "4"
+  AI_TIMEOUT_MS = "45000"
   NODE_ENV = "production"
 
 [http_service]

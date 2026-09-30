@@ -311,6 +311,31 @@ describe("store", { concurrency: 1 }, () => {
     assert.equal(piece?.price_cents, null);
     assert.equal(piece?.ask_for_price, 1);
     assert.equal(piece?.estimate_typical_cents, 30000);
+    store.insertLookup(id, {
+      query: "Gilt frame",
+      listings: [],
+      research: {
+        configured: true,
+        provider: "anthropic",
+        maker: "",
+        style: "",
+        era: "",
+        material: "",
+        history: "",
+        description: "",
+        confidence: "",
+        links: [],
+        note: "",
+      },
+      note: "Typical blends 1 sold price.",
+      range: { low: 10000, typical: 20000, high: 30000, count: 1 },
+      usage: { inputTokens: 10, outputTokens: 10, searchCount: 1, costMicros: 2_010_000, aiCalled: true },
+    });
+    const priced = store.getPiece(id);
+    assert.equal(priced?.price_cents, null);
+    assert.equal(priced?.estimate_typical_cents, 20000);
+    assert.equal(store.countAiLookupsSince(store.shopPeriodStart("day")), 1);
+    assert.equal(store.lookupCostMicrosSince(store.shopPeriodStart("month")), 2_010_000);
     assert.match(store.piecesToCsv(), new RegExp(sku));
     store.updatePiece(id, { ...blank, title: 'Frame, "gilt"', status: "held" });
     assert.match(store.piecesToCsv(), /"Frame, ""gilt"""/);

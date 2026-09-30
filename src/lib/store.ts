@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { dataDir, maxUploadBytes, tokenHash } from "./config.ts";
 import type { InventoryRow } from "./pos.ts";
 import { inventoryCsv } from "./pos.ts";
-import type { ResearchResult } from "./research.ts";
+import { blankResearch, normalizeResearch, type ResearchResult } from "./research.ts";
 import { SESSION_COOKIE } from "./security.ts";
 import { assertDatabaseDriver, putUpload, removeUpload, sqlitePath, uploadsDir } from "./storage.ts";
 import { askingRange, cleanCategory, cleanStatus, type AskingListing, type PieceStatus, type PriceRange } from "./value.ts";
@@ -143,6 +143,11 @@ export type PieceLookup = {
   research: ResearchResult;
   range: PriceRange | null;
   note: string;
+  inputTokens: number;
+  outputTokens: number;
+  searchCount: number;
+  costMicros: number;
+  aiCalled: boolean;
 };
 
 export function formatSku(id: number) {
@@ -402,6 +407,15 @@ function migrate(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS piece_lookups_piece ON piece_lookups (piece_id, id);
     CREATE UNIQUE INDEX IF NOT EXISTS pieces_sku ON pieces (sku) WHERE sku <> '';
   `);
+  const lookupColumns = tableColumns(db, "piece_lookups");
+  const addLookup = (name: string, definition: string) => {
+    if (!lookupColumns.has(name)) db.exec(`ALTER TABLE piece_lookups ADD COLUMN ${definition}`);
+  };
+  addLookup("input_tokens", "input_tokens INTEGER NOT NULL DEFAULT 0");
+  addLookup("output_tokens", "output_tokens INTEGER NOT NULL DEFAULT 0");
+  addLookup("search_count", "search_count INTEGER NOT NULL DEFAULT 0");
+  addLookup("cost_micros", "cost_micros INTEGER NOT NULL DEFAULT 0");
+  addLookup("ai_called", "ai_called INTEGER NOT NULL DEFAULT 0");
 }
 
 function finishInventory(db: DatabaseSync) {
@@ -899,6 +913,50 @@ function readJson<T>(raw: string, fallback: T): T {
   }
 }
 
+export function shopPeriodStart(kind: "day" | "month", now = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const partsOf = (date: Date) =>
+    Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  const parts = partsOf(now);
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = kind === "month" ? 1 : Number(parts.day);
+  const localMidnightUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
+  const zoned = partsOf(new Date(localMidnightUtc));
+  const zonedAsUtc = Date.UTC(
+    Number(zoned.year),
+    Number(zoned.month) - 1,
+    Number(zoned.day),
+    Number(zoned.hour),
+    Number(zoned.minute),
+    Number(zoned.second),
+  );
+  return new Date(localMidnightUtc - (zonedAsUtc - localMidnightUtc)).toISOString();
+}
+
+export function countAiLookupsSince(iso: string) {
+  const row = one<{ n: number }>(
+    getDb().prepare(`SELECT COUNT(*) AS n FROM piece_lookups WHERE ai_called = 1 AND created_at >= ?`).get(iso),
+  );
+  return row?.n ?? 0;
+}
+
+export function lookupCostMicrosSince(iso: string) {
+  const row = one<{ n: number }>(
+    getDb().prepare(`SELECT COALESCE(SUM(cost_micros), 0) AS n FROM piece_lookups WHERE created_at >= ?`).get(iso),
+  );
+  return row?.n ?? 0;
+}
+
 export function insertLookup(
   pieceId: number,
   input: {
@@ -906,19 +964,23 @@ export function insertLookup(
     listings: AskingListing[];
     research: ResearchResult;
     note: string;
+    range?: PriceRange | null;
+    usage?: { inputTokens: number; outputTokens: number; searchCount: number; costMicros: number; aiCalled: boolean };
   },
 ) {
   const usd = input.listings
     .filter((listing) => listing.currency === "USD" && listing.priceCents != null)
     .map((listing) => listing.priceCents as number);
-  const range = askingRange(usd);
-  const note = input.note.trim().slice(0, 500);
+  const range = input.range !== undefined ? input.range : askingRange(usd);
+  const note = input.note.trim().slice(0, 1000);
   const now = nowIso();
+  const usage = input.usage;
   const inserted = getDb()
     .prepare(
       `INSERT INTO piece_lookups (
-        piece_id, created_at, query_text, listings_json, research_json, range_json, note
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        piece_id, created_at, query_text, listings_json, research_json, range_json, note,
+        input_tokens, output_tokens, search_count, cost_micros, ai_called
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       pieceId,
@@ -928,6 +990,11 @@ export function insertLookup(
       JSON.stringify(input.research),
       range ? JSON.stringify(range) : "",
       note,
+      usage?.inputTokens ?? 0,
+      usage?.outputTokens ?? 0,
+      usage?.searchCount ?? 0,
+      usage?.costMicros ?? 0,
+      usage?.aiCalled ? 1 : 0,
     );
   getDb()
     .prepare(
@@ -940,44 +1007,48 @@ export function insertLookup(
   return Number(inserted.lastInsertRowid);
 }
 
-export function listLookups(pieceId: number): PieceLookup[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT id, piece_id, created_at, query_text, listings_json, research_json, range_json, note
-       FROM piece_lookups WHERE piece_id = ? ORDER BY id DESC`,
-    )
-    .all(pieceId) as Array<{
-    id: number;
-    piece_id: number;
-    created_at: string;
-    query_text: string;
-    listings_json: string;
-    research_json: string;
-    range_json: string;
-    note: string;
-  }>;
-  return rows.map((row) => ({
+const LOOKUP_SELECT = `SELECT id, piece_id, created_at, query_text, listings_json, research_json, range_json, note,
+  input_tokens, output_tokens, search_count, cost_micros, ai_called`;
+
+type LookupRow = {
+  id: number;
+  piece_id: number;
+  created_at: string;
+  query_text: string;
+  listings_json: string;
+  research_json: string;
+  range_json: string;
+  note: string;
+  input_tokens: number;
+  output_tokens: number;
+  search_count: number;
+  cost_micros: number;
+  ai_called: number;
+};
+
+function lookupFromRow(row: LookupRow): PieceLookup {
+  return {
     id: row.id,
     piece_id: row.piece_id,
     created_at: row.created_at,
     query_text: row.query_text,
     listings: readJson<AskingListing[]>(row.listings_json, []),
-    research: readJson<ResearchResult>(row.research_json, {
-      configured: false,
-      provider: "",
-      maker: "",
-      style: "",
-      era: "",
-      material: "",
-      history: "",
-      description: "",
-      confidence: "",
-      links: [],
-      note: "",
-    }),
+    research: normalizeResearch(readJson<ResearchResult>(row.research_json, blankResearch())),
     range: readJson<PriceRange | null>(row.range_json, null),
     note: row.note,
-  }));
+    inputTokens: row.input_tokens ?? 0,
+    outputTokens: row.output_tokens ?? 0,
+    searchCount: row.search_count ?? 0,
+    costMicros: row.cost_micros ?? 0,
+    aiCalled: row.ai_called === 1,
+  };
+}
+
+export function listLookups(pieceId: number): PieceLookup[] {
+  const rows = getDb()
+    .prepare(`${LOOKUP_SELECT} FROM piece_lookups WHERE piece_id = ? ORDER BY id DESC`)
+    .all(pieceId) as LookupRow[];
+  return rows.map(lookupFromRow);
 }
 
 export function getLookup(id: number) {
@@ -985,46 +1056,8 @@ export function getLookup(id: number) {
 }
 
 function listLookupsById(id: number): PieceLookup | null {
-  const row = one<{
-    id: number;
-    piece_id: number;
-    created_at: string;
-    query_text: string;
-    listings_json: string;
-    research_json: string;
-    range_json: string;
-    note: string;
-  }>(
-    getDb()
-      .prepare(
-        `SELECT id, piece_id, created_at, query_text, listings_json, research_json, range_json, note
-         FROM piece_lookups WHERE id = ?`,
-      )
-      .get(id),
-  );
-  if (!row) return null;
-  return {
-    id: row.id,
-    piece_id: row.piece_id,
-    created_at: row.created_at,
-    query_text: row.query_text,
-    listings: readJson<AskingListing[]>(row.listings_json, []),
-    research: readJson<ResearchResult>(row.research_json, {
-      configured: false,
-      provider: "",
-      maker: "",
-      style: "",
-      era: "",
-      material: "",
-      history: "",
-      description: "",
-      confidence: "",
-      links: [],
-      note: "",
-    }),
-    range: readJson<PriceRange | null>(row.range_json, null),
-    note: row.note,
-  };
+  const row = one<LookupRow>(getDb().prepare(`${LOOKUP_SELECT} FROM piece_lookups WHERE id = ?`).get(id));
+  return row ? lookupFromRow(row) : null;
 }
 
 export function listInventory(): InventoryRow[] {

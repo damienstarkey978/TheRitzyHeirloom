@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell } from "@/components/ui";
-import { listAllPieces, submissionCount } from "@/lib/store";
+import { formatCostMicros } from "@/lib/estimate";
+import { aiConfigured } from "@/lib/research";
+import { listAllPieces, lookupCostMicrosSince, shopPeriodStart, submissionCount } from "@/lib/store";
 
 export const metadata: Metadata = { title: "Shop desk" };
 
 export default function DeskHomePage() {
   const notes = submissionCount();
   const pieces = listAllPieces();
+  const monthCost = lookupCostMicrosSince(shopPeriodStart("month"));
   const drafts = pieces.filter((piece) => piece.status === "draft").length;
   const onFloor = pieces.filter((piece) => piece.status === "available").length;
   return (
@@ -44,6 +47,11 @@ export default function DeskHomePage() {
           </span>
         </Link>
       </div>
+      <p className="mt-6 text-sm leading-6">
+        {aiConfigured()
+          ? `AI lookups this month: ${formatCostMicros(monthCost)}.`
+          : "AI lookup is not set up."}
+      </p>
     </PageShell>
   );
 }

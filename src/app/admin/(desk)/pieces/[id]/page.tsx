@@ -15,6 +15,7 @@ import { formatPrice, formatWhen, getPiece, listLookups, listPieceChanges } from
 import { PIECE_CATEGORIES, PIECE_STATUSES, statusLabel } from "@/lib/value";
 
 export const metadata: Metadata = { title: "Edit piece" };
+export const maxDuration = 60;
 
 function priceValue(piece: { ask_for_price: number; price_cents: number | null }) {
   if (piece.ask_for_price || piece.price_cents == null) return "";

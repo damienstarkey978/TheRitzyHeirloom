@@ -38,7 +38,7 @@ Pages keep using the shop functions. `RITZY_DATABASE_DRIVER=sqlite` and `RITZY_F
 
 Draft pieces stay off the shop, the sold shelf, and the lookbook until they are published. Held pieces stay off the floor too. Available pieces are on the floor, and sold pieces move to the sold shelf.
 
-Each piece gets a stable SKU such as `RH-00007`. The pieces page can filter by status and search by title, SKU, maker, or tag. The shop floor can filter by category. **Look up value and history** on a draft reads current eBay asking prices and, when `AI_PROVIDER` and `AI_API_KEY` are set, a research draft. Asking prices are labeled as asking prices. The suggested range sits beside the price and does not replace it. A suggested description is saved only after you accept it. Lookup history stays on the piece.
+Each piece gets a stable SKU such as `RH-00007`. The pieces page can filter by status and search by title, SKU, maker, or tag. The shop floor can filter by category. **Look up value and history** reads current eBay asking prices and, when `AI_PROVIDER=anthropic` and `AI_API_KEY` are set, asks Claude to identify the photos and search the web. The range prefers sold prices, then web asking prices, then eBay asking prices at a discount. It never replaces the typed price. Suggested title, description, and history stay labeled for a check, and each is saved only after you accept that field. Lookup history and a monthly AI cost stay on the desk. Without a key, the desk says the AI lookup is not set up and still shows eBay asking prices.
 
 The read-only inventory API and the CSV columns are described in `docs/pos-integration.md`.
 
