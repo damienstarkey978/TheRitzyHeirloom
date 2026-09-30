@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CsrfField } from "@/components/csrf-field";
 import { PageShell, PieceCard, SampleBanner, SavedNote, SaveHint, SubmitButton, Field } from "@/components/ui";
 import { listArrivals } from "@/lib/store";
 
@@ -18,6 +19,7 @@ export default async function ArrivalsPage({
     >
       {pieces.some((piece) => piece.is_sample) ? <SampleBanner /> : null}
       <form action="/api/submissions" method="post" className="mt-6 flex max-w-md flex-col gap-4 border border-gold p-4">
+        <CsrfField />
         <input type="hidden" name="kind" value="signup" />
         <input type="hidden" name="return_to" value="/arrivals" />
         <p className="text-sm leading-6">Leave an email for new arrivals. It is kept on the shop desk.</p>

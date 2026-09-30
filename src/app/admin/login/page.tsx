@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CsrfField } from "@/components/csrf-field";
 import { PageShell, SubmitButton, Field } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Shop desk" };
@@ -12,6 +13,7 @@ export default async function LoginPage({
   return (
     <PageShell title="Shop desk" lead="Sign in to add pieces and read notes.">
       <form action="/api/admin/login" method="post" className="mt-8 flex max-w-sm flex-col gap-4">
+        <CsrfField />
         <Field label="Username" name="username" autoComplete="username" required />
         <Field label="Password" name="password" type="password" autoComplete="current-password" required />
         {query.error ? (

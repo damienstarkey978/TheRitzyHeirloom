@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CsrfField } from "@/components/csrf-field";
 import { currentUser } from "@/lib/session";
 import { submissionCount } from "@/lib/store";
 
@@ -23,8 +24,12 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
           <Link href="/admin/pieces/new" className="hover:text-gold">
             Add piece
           </Link>
+          <Link href="/admin/password" className="hover:text-gold">
+            Password
+          </Link>
           <span className="text-sm tracking-normal normal-case">Signed in as {user.username}</span>
           <form action="/api/admin/logout" method="post" className="sm:ml-auto">
+            <CsrfField />
             <button type="submit" className="tracking-[0.16em] uppercase hover:text-gold">
               Sign out
             </button>

@@ -11,12 +11,13 @@ function PendingNote() {
   return <p className="mt-4 text-sm">Saving the photos…</p>;
 }
 
-export function AddPieceForm() {
+export function AddPieceForm({ csrfToken }: { csrfToken: string }) {
   const [state, action] = useActionState(createPieceFromPhotos, { error: "" });
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form action={action} ref={formRef} className="mt-6">
+      <input type="hidden" name="csrf" value={csrfToken} />
       <label className="flex min-h-[58dvh] cursor-pointer flex-col items-center justify-center border border-gold px-6 py-10 text-center">
         <input
           type="file"

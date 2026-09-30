@@ -29,22 +29,71 @@ npm test
 
 ## How the data is stored
 
-- SQLite database: `data/ritzy.sqlite`
+- SQLite database: `data/ritzy.sqlite` (or `RITZY_DATA_DIR`)
 - Photos: `data/uploads`, resized JPEGs
 - Both stay on this computer. They are gitignored.
-- Questions, holds, visit requests, trade requests, consignment offers, and new-arrival emails are rows in that database. Nothing is emailed.
+- Questions, holds, visit requests, trade requests, consignment offers, and new-arrival emails are rows in that database. Nothing is emailed unless a webhook is turned on later.
+
+Pages keep using the shop functions. `RITZY_DATABASE_DRIVER=sqlite` and `RITZY_FILE_DRIVER=local` are the working defaults. Any other driver name is refused, so a hosted database or object storage can be added later without rewriting the pages.
 
 Draft pieces stay off the shop, the sold shelf, and the lookbook until they are published.
 
-## What a public host would need
+`ADMIN_PASSWORD` creates the desk account the first time that username is missing. Changing the password in the desk is kept across restarts. If that password is lost, delete the user row, set `ADMIN_PASSWORD` again, and restart.
 
-GitHub Pages only serves the static site on `main`. This version needs a process that can run a server:
+`SITE_PASSWORD` locks the whole site, in front of the desk login. Leave it empty here. Set it on the host.
 
-1. A Node server (`npm run build` then `npm start`, or another host that runs Next.js with server features).
-2. A database on disk that survives restarts. SQLite is enough for one server writing to one file. More than one server needs a shared database.
-3. A place to keep the photos in `data/uploads` on that same server, or object storage wired to the same records.
-4. `ADMIN_PASSWORD` set in the host environment. On HTTPS, set `RITZY_COOKIE_SECURE=1` so the session cookie is only sent over HTTPS.
+## Deploy
 
-Do not point ritzyheirloom.com at this branch. Pages, DNS, and `main` stay as they are. This branch also asks search engines not to index it. That would need to change if this ever became the public site.
+GitHub Pages only serves the static site on `main`. This branch needs one always-on Node process, a disk that survives restarts, and HTTPS. Do not point ritzyheirloom.com at this branch. Do not push this branch to `main`, and do not change Pages.
 
-`npm run build` on this branch does not write the `out/` folder Pages expects. `main` still builds that static site. Do not merge this config into `main` without a host for the server.
+The host for the private shop is Fly.io: one shared-cpu machine in Ashburn (`iad`) with 512 MB of RAM, kept running, and a 15 GB volume mounted at `/data` for the SQLite file and the photos. That avoids a database rewrite. Pricing checked 30 September 2026 at [Fly.io pricing](https://fly.io/pricing/) and [Fly resource pricing](https://fly.io/docs/about/pricing/):
+
+- shared-cpu-1x at 256 MB is $1.94 per month, and extra RAM is $5 per GB per month, so 512 MB is about $3.19
+- volumes are $0.15 per provisioned GB per month, so 15 GB is $2.25
+- daily volume snapshots are included, billed at $0.08 per GB of stored snapshot data, with the first 10 GB free and 5 days of retention
+- North America egress is $0.02 per GB
+
+That is about $5.50 per month before tax, plus a little egress. A 1 October 2026 price update on [fly.io/pricing-update](https://fly.io/pricing-update/) raises that machine to about $3.69, so the same setup is about $6 to $7 after that. A dedicated IPv4 address ($2 per month) is not required if `dev` is a CNAME.
+
+Render’s free web service sleeps and cannot attach a disk. Render’s always-on Starter plan is $7 plus $0.25 per GB of disk, about $11 for 15 GB ([Render pricing](https://render.com/pricing)). Railway Hobby includes $5 of usage but its volume limit is 5 GB, which does not hold about 10 GB of photos; Pro is $20 ([Railway pricing](https://railway.com/pricing)). Hetzner’s cheapest shared cloud plans were marked unavailable, and a VPS still needs its own TLS, deploys, and backups. None of those beat Fly on both cost and reliability for this shop.
+
+`fly.toml` is in the repo. The volume is created with flyctl, not by that file. Do not deploy until the Fly account exists and Damien says it is ready. Do not put passwords in git.
+
+When the account is ready, from this branch:
+
+```bash
+fly auth login
+fly apps create ritzy-heirloom-dev
+fly volumes create ritzy_data --region iad --size 15 -a ritzy-heirloom-dev
+fly secrets set -a ritzy-heirloom-dev \
+  SESSION_SECRET="$(openssl rand -hex 32)" \
+  ADMIN_USERNAME=mindy \
+  ADMIN_PASSWORD="choose-a-desk-password" \
+  SITE_PASSWORD="choose-a-site-password" \
+  RITZY_BASE_URL="https://dev.ritzyheirloom.com" \
+  RITZY_COOKIE_SECURE=1 \
+  RITZY_DATA_DIR=/data \
+  RITZY_DATABASE_DRIVER=sqlite \
+  RITZY_FILE_DRIVER=local \
+  RITZY_EMAIL_DRIVER=off
+fly deploy -a ritzy-heirloom-dev
+fly certs add dev.ritzyheirloom.com -a ritzy-heirloom-dev
+```
+
+If the app name is already taken, pick another name and use that name’s `fly.dev` hostname in the DNS record below.
+
+DNS for the private host, not applied yet. Leave the apex and `www` records for ritzyheirloom.com alone.
+
+| Type | Name | Value |
+| --- | --- | --- |
+| CNAME | dev | ritzy-heirloom-dev.fly.dev |
+
+Fly’s volume snapshots run every day and are kept for 5 days. For a copy you can download, on the machine:
+
+```bash
+fly ssh console -a ritzy-heirloom-dev -C "node scripts/backup.mjs"
+```
+
+That writes `/data/backups/ritzy-<date>.tar.gz` with a consistent SQLite copy and the photos. Copy it off the volume with `fly ssh sftp get`. Locally, `npm run backup` writes the same kind of archive under `data/backups`.
+
+`npm run build` on this branch does not write the `out/` folder Pages expects. `main` still builds that static site. Do not merge this config into `main`. This branch also asks search engines not to index it.

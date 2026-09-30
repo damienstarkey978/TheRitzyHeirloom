@@ -9,6 +9,7 @@ import {
   SubmitButton,
   TextArea,
 } from "@/components/ui";
+import { CsrfField } from "@/components/csrf-field";
 import { formatPrice, getPublicPiece } from "@/lib/store";
 
 type PieceParams = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> };
@@ -70,6 +71,7 @@ export default async function PiecePage({ params, searchParams }: PieceParams) {
             </section>
           ) : null}
           <form action="/api/submissions" method="post" encType="multipart/form-data" className="mt-8 flex flex-col gap-4">
+            <CsrfField />
             <input type="hidden" name="piece_id" value={piece.id} />
             <input type="hidden" name="return_to" value={`/pieces/${piece.id}`} />
             <fieldset>

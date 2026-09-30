@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CsrfField } from "@/components/csrf-field";
 import { Field, PageShell, SaveHint, SavedNote, SubmitButton, TextArea } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Private visit" };
@@ -15,6 +16,7 @@ export default async function VisitPage({
       lead="Request a time to come in. Hours are not published."
     >
       <form action="/api/submissions" method="post" className="mt-8 flex max-w-lg flex-col gap-4">
+        <CsrfField />
         <input type="hidden" name="kind" value="visit" />
         <input type="hidden" name="return_to" value="/visit" />
         <Field label="Name" name="name" required autoComplete="name" />

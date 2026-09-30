@@ -1,10 +1,17 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { dataDir, maxUploadBytes, tokenHash } from "./config.ts";
+import { SESSION_COOKIE } from "./security.ts";
+import { assertDatabaseDriver, putUpload, removeUpload, sqlitePath, uploadsDir } from "./storage.ts";
 
-export const SESSION_COOKIE = "ritzy_session";
+export { SESSION_COOKIE };
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 14;
+export const LOGIN_LIMIT = 8;
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+export { dataDir, uploadsDir };
 
 export const PROJECT_TYPES = [
   "A home",
@@ -101,24 +108,12 @@ function one<T>(value: unknown): T | undefined {
   return value as T;
 }
 
-export function dataDir() {
-  return process.env.RITZY_DATA_DIR || path.join(process.cwd(), "data");
-}
-
-export function uploadsDir() {
-  return path.join(dataDir(), "uploads");
-}
-
 export function uploadPath(filename: string): string | null {
   if (!/^[a-f0-9]{32}\.jpg$/.test(filename)) return null;
   const root = path.resolve(uploadsDir());
   const full = path.resolve(root, filename);
   if (full !== path.join(root, filename)) return null;
   return full;
-}
-
-function sha256(value: string) {
-  return createHash("sha256").update(value).digest("hex");
 }
 
 export function hashPassword(password: string) {
@@ -152,26 +147,22 @@ function ensureAdmin(db: DatabaseSync) {
   const existing = one<{ id: number; password_hash: string }>(
     db.prepare("SELECT id, password_hash FROM users WHERE username = ?").get(username),
   );
-  if (!existing) {
-    db.prepare("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)").run(
-      username,
-      hashPassword(password),
-      nowIso(),
-    );
-    return;
-  }
-  if (!verifyPassword(password, existing.password_hash)) {
-    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
-      hashPassword(password),
-      existing.id,
-    );
-  }
+  if (existing) return;
+  db.prepare("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)").run(
+    username,
+    hashPassword(password),
+    nowIso(),
+  );
+}
+
+export function syncAdminFromEnv() {
+  ensureAdmin(getDb());
 }
 
 function placeSample(sourceName: string) {
   const filename = `${randomBytes(16).toString("hex")}.jpg`;
   const from = path.join(process.cwd(), "src/lib/samples", sourceName);
-  fs.copyFileSync(from, path.join(uploadsDir(), filename));
+  putUpload(filename, fs.readFileSync(from));
   return filename;
 }
 
@@ -300,7 +291,7 @@ function seedIfEmpty(db: DatabaseSync) {
     }
     for (const filename of placed) {
       try {
-        fs.unlinkSync(path.join(uploadsDir(), filename));
+        removeUpload(filename);
       } catch {
         /* the copy may not exist */
       }
@@ -311,10 +302,12 @@ function seedIfEmpty(db: DatabaseSync) {
 
 export function getDb() {
   if (globalForDb.__ritzyDb) return globalForDb.__ritzyDb;
+  assertDatabaseDriver();
   fs.mkdirSync(uploadsDir(), { recursive: true });
-  const db = new DatabaseSync(path.join(dataDir(), "ritzy.sqlite"));
+  const db = new DatabaseSync(sqlitePath());
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 3000");
+  db.exec("PRAGMA journal_mode = WAL");
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY,
@@ -368,6 +361,12 @@ export function getDb() {
     );
     CREATE INDEX IF NOT EXISTS pieces_public ON pieces (published, sold, created_at);
     CREATE INDEX IF NOT EXISTS piece_photos_piece ON piece_photos (piece_id, sort_order);
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id INTEGER PRIMARY KEY,
+      attempt_key TEXT NOT NULL,
+      attempted_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS login_attempts_key ON login_attempts (attempt_key, attempted_at);
   `);
   globalForDb.__ritzyDb = db;
   ensureAdmin(db);
@@ -429,7 +428,7 @@ export function startSession(username: string, password: string) {
   const expires = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
   getDb()
     .prepare("INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)")
-    .run(sha256(token), user.id, expires, nowIso());
+    .run(tokenHash(token), user.id, expires, nowIso());
   return token;
 }
 
@@ -443,7 +442,7 @@ export function getUserByToken(token: string | undefined) {
          FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.token_hash = ?`,
       )
-      .get(sha256(token)),
+      .get(tokenHash(token)),
   );
   if (!row) return null;
   if (row.expires_at < new Date().toISOString()) {
@@ -454,7 +453,41 @@ export function getUserByToken(token: string | undefined) {
 }
 
 export function endSession(token: string) {
-  getDb().prepare("DELETE FROM sessions WHERE token_hash = ?").run(sha256(token));
+  getDb().prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash(token));
+}
+
+export function loginFailureKey(ip: string, username: string) {
+  return `${ip.slice(0, 80)}\n${username.trim().slice(0, 200)}`;
+}
+
+export function tooManyLoginFailures(key: string) {
+  const since = new Date(Date.now() - LOGIN_WINDOW_MS).toISOString();
+  const row = one<{ n: number }>(
+    getDb()
+      .prepare("SELECT COUNT(*) AS n FROM login_attempts WHERE attempt_key = ? AND attempted_at >= ?")
+      .get(key, since),
+  );
+  return Number(row?.n ?? 0) >= LOGIN_LIMIT;
+}
+
+export function recordLoginFailure(key: string) {
+  const db = getDb();
+  db.prepare("INSERT INTO login_attempts (attempt_key, attempted_at) VALUES (?, ?)").run(key, nowIso());
+  const since = new Date(Date.now() - LOGIN_WINDOW_MS).toISOString();
+  db.prepare("DELETE FROM login_attempts WHERE attempted_at < ?").run(since);
+}
+
+export function clearLoginFailures(key: string) {
+  getDb().prepare("DELETE FROM login_attempts WHERE attempt_key = ?").run(key);
+}
+
+export function changePassword(username: string, current: string, next: string) {
+  const user = verifyLogin(username, current);
+  if (!user) return "current" as const;
+  if (next.length < 10 || next.length > 200 || next !== next.trim()) return "short" as const;
+  if (next === current) return "same" as const;
+  getDb().prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(next), user.id);
+  return "ok" as const;
 }
 
 function listCards(sql: string, ...params: unknown[]) {
@@ -573,13 +606,8 @@ function unlinkIfUnused(filename: string) {
     db.prepare("SELECT COUNT(*) AS n FROM submission_photos WHERE filename = ?").get(filename),
   );
   if (Number(pieceUse?.n ?? 0) === 0 && Number(submissionUse?.n ?? 0) === 0) {
-    const full = uploadPath(filename);
-    if (!full) return;
-    try {
-      fs.unlinkSync(full);
-    } catch {
-      /* already gone */
-    }
+    if (!uploadPath(filename)) return;
+    removeUpload(filename);
   }
 }
 
@@ -749,16 +777,48 @@ export function submissionCount() {
   return Number(row?.n ?? 0);
 }
 
+export function inspectImage(input: Buffer): "ok" | "empty" | "large" | "type" {
+  if (input.length === 0) return "empty";
+  if (input.length > maxUploadBytes()) return "large";
+  if (!imageKind(input)) return "type";
+  return "ok";
+}
+
+function imageKind(input: Buffer) {
+  if (input.length >= 3 && input[0] === 0xff && input[1] === 0xd8 && input[2] === 0xff) return "jpeg";
+  if (
+    input.length >= 8 &&
+    input[0] === 0x89 &&
+    input[1] === 0x50 &&
+    input[2] === 0x4e &&
+    input[3] === 0x47
+  ) {
+    return "png";
+  }
+  if (
+    input.length >= 12 &&
+    input.toString("ascii", 0, 4) === "RIFF" &&
+    input.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "webp";
+  }
+  if (input.length >= 12 && input.toString("ascii", 4, 8) === "ftyp") {
+    const brand = input.toString("ascii", 8, 12);
+    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1", "heim", "heis"].includes(brand)) return "heic";
+  }
+  return null;
+}
+
 export async function saveJpeg(input: Buffer) {
-  if (input.length === 0) throw new Error("empty");
-  if (input.length > 20 * 1024 * 1024) throw new Error("large");
+  const checked = inspectImage(input);
+  if (checked !== "ok") throw new Error(checked);
   const sharp = (await import("sharp")).default;
   const filename = `${randomBytes(16).toString("hex")}.jpg`;
-  fs.mkdirSync(uploadsDir(), { recursive: true });
-  await sharp(input)
+  const output = await sharp(input)
     .rotate()
     .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: 82 })
-    .toFile(path.join(uploadsDir(), filename));
+    .toBuffer();
+  putUpload(filename, output);
   return filename;
 }

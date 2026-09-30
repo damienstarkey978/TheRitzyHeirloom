@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CsrfField } from "@/components/csrf-field";
 import { Field, PageShell, SaveHint, SavedNote, SubmitButton, TextArea } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Consign" };
@@ -17,6 +18,7 @@ export default async function ConsignPage({
         encType="multipart/form-data"
         className="mt-8 flex max-w-lg flex-col gap-4"
       >
+        <CsrfField />
         <input type="hidden" name="kind" value="consignment" />
         <input type="hidden" name="return_to" value="/consign" />
         <Field label="Name" name="name" required autoComplete="name" />

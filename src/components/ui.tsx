@@ -137,6 +137,7 @@ export function SavedNote({ saved, error }: { saved?: string; error?: string }) 
     photo: "That photo could not be saved. Try a JPEG or PNG.",
     piece: "That piece is not available for this note.",
     kind: "Choose what you need.",
+    form: "This page expired. Reload it and try again.",
   };
   return (
     <p role="alert" className="mt-4 border border-black px-3 py-2 text-sm">

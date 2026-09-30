@@ -10,8 +10,19 @@ process.env.RITZY_DATA_DIR = mkdtempSync(path.join(tmpdir(), "ritzy-"));
 process.env.RITZY_SEED = "0";
 process.env.ADMIN_USERNAME = "mindy";
 process.env.ADMIN_PASSWORD = password;
+process.env.SESSION_SECRET = randomBytes(32).toString("hex");
+process.env.SITE_PASSWORD = "";
+process.env.RITZY_EMAIL_DRIVER = "off";
+process.env.RITZY_DATABASE_DRIVER = "sqlite";
+process.env.RITZY_FILE_DRIVER = "local";
+process.env.RITZY_COOKIE_SECURE = "0";
+process.env.RITZY_BASE_URL = "http://127.0.0.1:4765";
 
 const store = await import("../src/lib/store.ts");
+const security = await import("../src/lib/security.ts");
+const config = await import("../src/lib/config.ts");
+const mail = await import("../src/lib/mail.ts");
+const storage = await import("../src/lib/storage.ts");
 
 const blank = {
   title: "Test chair",
@@ -158,5 +169,87 @@ describe("store", { concurrency: 1 }, () => {
     assert.equal(after?.photos[0].filename, second);
     store.updatePiece(id, { ...blank, published: true });
     assert.equal(store.isPublishedPiecePhoto(second), true);
+  });
+
+  test("login failures are limited", () => {
+    const key = store.loginFailureKey("203.0.113.5", "mindy");
+    store.clearLoginFailures(key);
+    assert.equal(store.tooManyLoginFailures(key), false);
+    for (let attempt = 0; attempt < store.LOGIN_LIMIT; attempt += 1) {
+      store.recordLoginFailure(key);
+    }
+    assert.equal(store.tooManyLoginFailures(key), true);
+    store.clearLoginFailures(key);
+    assert.equal(store.tooManyLoginFailures(key), false);
+  });
+
+  test("csrf rejects a missing or mismatched token, and the site gate checks its cookie", () => {
+    assert.equal(security.csrfMatches("abc", "abc"), true);
+    assert.equal(security.csrfMatches("abc", "abd"), false);
+    assert.equal(security.csrfMatches(undefined, "abc"), false);
+    assert.equal(security.gateCookieMatches("not-the-gate"), false);
+    process.env.SITE_PASSWORD = "preview-lock";
+    const expected = config.gateToken();
+    assert.equal(security.gateCookieMatches(expected), true);
+    assert.equal(security.sitePasswordMatches("preview-lock"), true);
+    assert.equal(security.sitePasswordMatches("wrong-password"), false);
+    process.env.SITE_PASSWORD = "";
+    assert.equal(security.gateCookieMatches(expected), false);
+  });
+
+  test("photos must be a known image type", () => {
+    assert.equal(store.inspectImage(Buffer.alloc(0)), "empty");
+    assert.equal(store.inspectImage(Buffer.from("not-a-photo")), "type");
+    assert.equal(store.inspectImage(Buffer.from([0xff, 0xd8, 0xff, 0x00])), "ok");
+  });
+
+  test("email stays off unless a webhook is configured", async () => {
+    const notice = {
+      kind: "ask",
+      name: "Ada",
+      email: "ada@example.com",
+      message: "Is it still there?",
+      projectType: "",
+      preferredTime: "",
+    };
+    process.env.RITZY_EMAIL_DRIVER = "off";
+    const quiet = await mail.sendSubmissionNotice(notice);
+    assert.equal(quiet.delivered, false);
+    const calls: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      calls.push(String(url));
+      return new Response("ok", { status: 200 });
+    };
+    process.env.RITZY_EMAIL_DRIVER = "webhook";
+    process.env.RITZY_EMAIL_WEBHOOK_URL = "https://example.test/hook";
+    process.env.RITZY_NOTIFY_EMAIL = "desk@example.com";
+    const sent = await mail.sendSubmissionNotice(notice);
+    assert.equal(sent.delivered, true);
+    assert.deepEqual(calls, ["https://example.test/hook"]);
+    globalThis.fetch = original;
+    process.env.RITZY_EMAIL_DRIVER = "off";
+    delete process.env.RITZY_EMAIL_WEBHOOK_URL;
+    delete process.env.RITZY_NOTIFY_EMAIL;
+  });
+
+  test("hosted database and object storage drivers are refused until they exist", () => {
+    process.env.RITZY_DATABASE_DRIVER = "postgres";
+    assert.throws(() => storage.assertDatabaseDriver(), /SQLite/);
+    process.env.RITZY_DATABASE_DRIVER = "sqlite";
+    process.env.RITZY_FILE_DRIVER = "s3";
+    assert.throws(() => storage.assertFileDriver(), /local disk/);
+    process.env.RITZY_FILE_DRIVER = "local";
+  });
+
+  test("a changed desk password stays after the environment password is read again", () => {
+    const next = randomBytes(12).toString("hex");
+    assert.equal(store.changePassword("mindy", "not-the-password", next), "current");
+    assert.equal(store.changePassword("mindy", password, next), "ok");
+    store.syncAdminFromEnv();
+    assert.equal(store.startSession("mindy", password), null);
+    const token = store.startSession("mindy", next);
+    assert.ok(token);
+    store.endSession(token ?? "");
   });
 });

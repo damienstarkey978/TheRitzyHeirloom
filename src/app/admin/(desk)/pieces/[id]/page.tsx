@@ -8,6 +8,7 @@ import {
   removePhotoAction,
   updatePieceAction,
 } from "@/app/admin/actions";
+import { CsrfField } from "@/components/csrf-field";
 import { Field, PageShell, SubmitButton, TextArea, buttonClass, fieldClass, quietButtonClass } from "@/components/ui";
 import { formatPrice, getPiece } from "@/lib/store";
 
@@ -62,8 +63,14 @@ export default async function EditPiecePage({
           That photo could not be saved. Try a JPEG or PNG.
         </p>
       ) : null}
+      {query.error === "form" ? (
+        <p role="alert" className="mt-4 border border-black px-3 py-2 text-sm">
+          This page expired. Reload it and try again.
+        </p>
+      ) : null}
 
       <form action={updatePieceAction} className="mt-6 flex max-w-xl flex-col gap-4">
+        <CsrfField />
         <input type="hidden" name="id" value={piece.id} />
         <Field label="Title" name="title" required defaultValue={piece.title} />
         <TextArea label="Description" name="description" defaultValue={piece.description} />
@@ -111,6 +118,7 @@ export default async function EditPiecePage({
               />
               <div className="mt-3 flex flex-wrap gap-2">
                 <form action={movePhotoAction}>
+                  <CsrfField />
                   <input type="hidden" name="id" value={piece.id} />
                   <input type="hidden" name="photo_id" value={photo.id} />
                   <input type="hidden" name="direction" value="earlier" />
@@ -119,6 +127,7 @@ export default async function EditPiecePage({
                   </button>
                 </form>
                 <form action={movePhotoAction}>
+                  <CsrfField />
                   <input type="hidden" name="id" value={piece.id} />
                   <input type="hidden" name="photo_id" value={photo.id} />
                   <input type="hidden" name="direction" value="later" />
@@ -127,6 +136,7 @@ export default async function EditPiecePage({
                   </button>
                 </form>
                 <form action={removePhotoAction}>
+                  <CsrfField />
                   <input type="hidden" name="id" value={piece.id} />
                   <input type="hidden" name="photo_id" value={photo.id} />
                   <button type="submit" className={quietButtonClass}>
@@ -138,6 +148,7 @@ export default async function EditPiecePage({
           ))}
         </ul>
         <form action={addPhotosAction} className="mt-4 flex max-w-xl flex-col gap-3">
+          <CsrfField />
           <input type="hidden" name="id" value={piece.id} />
           <label className="block">
             <span className="text-[0.65rem] tracking-[0.16em] uppercase">Add photos</span>
@@ -157,6 +168,7 @@ export default async function EditPiecePage({
       </section>
 
       <form action={deletePieceAction} className="mt-12 border-t border-black/10 pt-6">
+        <CsrfField />
         <input type="hidden" name="id" value={piece.id} />
         <p className="text-sm leading-6">This removes the piece and its photos from this computer.</p>
         <button type="submit" className={`${quietButtonClass} mt-3`}>

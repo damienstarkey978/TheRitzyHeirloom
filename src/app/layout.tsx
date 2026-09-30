@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Source_Serif_4 } from "next/font/google";
+import { headers } from "next/headers";
 import { SiteHeader } from "@/components/site-header";
 import { getDb } from "@/lib/store";
 import "./globals.css";
@@ -22,12 +23,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
   getDb();
+  const gate = (await headers()).get("x-ritzy-gate") === "1";
   return (
     <html lang="en" className={`${sourceSerif.variable} h-full antialiased`}>
       <body className="min-h-full font-serif">
-        <SiteHeader />
+        {gate ? null : <SiteHeader />}
         {children}
       </body>
     </html>
