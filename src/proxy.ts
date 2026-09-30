@@ -56,6 +56,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|logo\\.jpg|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // The wordmark has to load on the password page. Piece photos live under /api/media and stay behind the gate.
+    "/((?!_next/static|_next/image|logo\\.jpg|favicon\\.ico).*)",
   ],
 };
