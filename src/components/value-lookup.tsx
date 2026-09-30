@@ -72,10 +72,15 @@ export function ValueLookup({
             <p className="mt-3 text-sm leading-6 whitespace-pre-wrap">{latest.research.history}</p>
           ) : null}
           {latest.research.links.length > 0 ? (
-            <ul className="mt-3 flex flex-col gap-1 text-sm">
+            <ul className="mt-3 flex flex-col text-sm">
               {latest.research.links.map((link) => (
-                <li key={link.url}>
-                  <a href={link.url} className="underline hover:text-gold" target="_blank" rel="noreferrer">
+                <li key={link.url} className="min-w-0">
+                  <a
+                    href={link.url}
+                    className="flex min-h-11 items-center break-words underline hover:text-gold"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     {link.title}
                   </a>
                 </li>
@@ -98,8 +103,13 @@ export function ValueLookup({
           <h3 className="text-sm">Active listings — asking prices, not sold prices</h3>
           <ul className="mt-3 flex flex-col gap-3">
             {latest.listings.slice(0, 8).map((listing) => (
-              <li key={listing.url} className="text-sm leading-6">
-                <a href={listing.url} className="underline hover:text-gold" target="_blank" rel="noreferrer">
+              <li key={listing.url} className="min-w-0 text-sm leading-6">
+                <a
+                  href={listing.url}
+                  className="flex min-h-11 items-center break-words underline hover:text-gold"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {listing.title}
                 </a>
                 <span className="block">

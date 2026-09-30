@@ -18,7 +18,7 @@ export default function InboxPage() {
         <ul className="mt-8 flex flex-col gap-4">
           {notes.map((note) => (
             <li key={note.id} className="border border-black/15 p-4">
-              <p className="text-[0.65rem] tracking-[0.16em] text-gold uppercase">
+              <p className="text-xs tracking-wide text-gold uppercase">
                 {SUBMISSION_LABELS[note.kind] ?? note.kind}
               </p>
               <h2 className="mt-2 text-lg">{note.name || note.email}</h2>
@@ -26,7 +26,7 @@ export default function InboxPage() {
               {note.piece_id ? (
                 <p className="mt-2 text-sm">
                   About{" "}
-                  <Link href={`/admin/pieces/${note.piece_id}`} className="underline hover:text-gold">
+                  <Link href={`/admin/pieces/${note.piece_id}`} className="inline-flex min-h-11 items-center underline hover:text-gold">
                     {note.piece_title ?? "a piece"}
                   </Link>
                 </p>
@@ -40,8 +40,12 @@ export default function InboxPage() {
                     <li key={photo.id}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={`/api/media/${photo.filename}`}
+                        src={`/api/media/${photo.filename}?w=800`}
                         alt="Photo sent with this note"
+                        width={800}
+                        height={600}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-80 w-full object-contain"
                       />
                     </li>

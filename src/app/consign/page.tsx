@@ -25,9 +25,9 @@ export default async function ConsignPage({
         <Field label="Email" name="email" type="email" required autoComplete="email" />
         <TextArea label="The piece" name="message" required placeholder="What it is, and anything you know about it" />
         <label className="block">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Photo</span>
+          <span className="text-xs tracking-wide uppercase">Photo</span>
           <span className="mt-1 block text-sm leading-6">Optional.</span>
-          <input className="mt-2 block w-full text-base" type="file" name="photo" accept="image/*" />
+          <input className="mt-2 block min-h-11 w-full text-base" type="file" name="photo" accept="image/*" />
         </label>
         <SaveHint />
         <SavedNote saved={query.saved} error={query.error} />

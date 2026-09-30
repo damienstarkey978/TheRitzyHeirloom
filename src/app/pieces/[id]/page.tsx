@@ -45,12 +45,16 @@ export default async function PiecePage({ params, searchParams }: PieceParams) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={photo.id}
-                src={`/api/media/${photo.filename}`}
+                src={`/api/media/${photo.filename}?w=${index === 0 ? 1200 : 800}`}
                 alt={
                   piece.is_sample
                     ? `Sample image ${index + 1} for ${piece.title}`
                     : `${piece.title}, photo ${index + 1}`
                 }
+                width={index === 0 ? 1200 : 800}
+                height={index === 0 ? 900 : 600}
+                loading={index === 0 ? "eager" : "lazy"}
+                decoding="async"
                 className="aspect-[4/3] w-full object-cover"
               />
             ))
@@ -79,15 +83,15 @@ export default async function PiecePage({ params, searchParams }: PieceParams) {
             <input type="hidden" name="piece_id" value={piece.id} />
             <input type="hidden" name="return_to" value={`/pieces/${piece.id}`} />
             <fieldset>
-              <legend className="text-[0.65rem] tracking-[0.16em] uppercase">Ask or hold</legend>
+              <legend className="text-xs tracking-wide uppercase">Ask or hold</legend>
               {piece.sold ? <p className="mt-2 text-sm">This piece is marked sold.</p> : null}
-              <label className="mt-3 flex items-center gap-2 text-sm">
-                <input type="radio" name="kind" value="ask" defaultChecked className="accent-gold" />
+              <label className="mt-3 flex min-h-11 items-center gap-3 text-base">
+                <input type="radio" name="kind" value="ask" defaultChecked className="size-11 accent-gold" />
                 Ask a question
               </label>
               {piece.sold ? null : (
-                <label className="mt-2 flex items-center gap-2 text-sm">
-                  <input type="radio" name="kind" value="hold" className="accent-gold" />
+                <label className="flex min-h-11 items-center gap-3 text-base">
+                  <input type="radio" name="kind" value="hold" className="size-11 accent-gold" />
                   Request a hold
                 </label>
               )}
@@ -96,18 +100,18 @@ export default async function PiecePage({ params, searchParams }: PieceParams) {
             <Field label="Email" name="email" type="email" required autoComplete="email" />
             <TextArea label="Note" name="message" required placeholder="What would you like to know?" />
             <label className="block">
-              <span className="text-[0.65rem] tracking-[0.16em] uppercase">Bring a photo</span>
+              <span className="text-xs tracking-wide uppercase">Bring a photo</span>
               <span className="mt-1 block text-sm leading-6">
                 A room, or an item you want something in the spirit of. Optional.
               </span>
-              <input className="mt-2 block w-full text-base" type="file" name="photo" accept="image/*" />
+              <input className="mt-2 block min-h-11 w-full text-base" type="file" name="photo" accept="image/*" />
             </label>
             <SaveHint />
             <SavedNote saved={query.saved} error={query.error} />
             <SubmitButton>Save this note</SubmitButton>
           </form>
           <p className="mt-6 text-sm">
-            <Link href="/shop" className="tracking-[0.14em] uppercase hover:text-gold">
+            <Link href="/shop" className="inline-flex min-h-11 items-center text-sm underline hover:text-gold">
               Back to the shop
             </Link>
           </p>

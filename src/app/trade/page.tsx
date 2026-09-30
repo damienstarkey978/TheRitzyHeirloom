@@ -23,7 +23,7 @@ export default async function TradePage({
         <Field label="Name" name="name" required autoComplete="name" />
         <Field label="Email" name="email" type="email" required autoComplete="email" />
         <label className="block">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Project type</span>
+          <span className="text-xs tracking-wide uppercase">Project type</span>
           <select name="project_type" required className={fieldClass} defaultValue="">
             <option value="" disabled>
               Choose one

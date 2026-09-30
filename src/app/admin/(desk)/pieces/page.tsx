@@ -20,11 +20,11 @@ export default async function PiecesPage({
     <PageShell title="Pieces" lead="Search the inventory. Drafts stay hidden until you publish them.">
       <form action="/admin/pieces" className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block flex-1">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Search</span>
+          <span className="text-xs tracking-wide uppercase">Search</span>
           <input className={fieldClass} name="q" defaultValue={q} placeholder="Title, SKU, maker, tag" />
         </label>
         <label className="block sm:w-48">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Status</span>
+          <span className="text-xs tracking-wide uppercase">Status</span>
           <select className={fieldClass} name="status" defaultValue={status}>
             <option value="">All</option>
             {PIECE_STATUSES.map((value) => (
@@ -38,15 +38,15 @@ export default async function PiecesPage({
           Filter
         </button>
       </form>
-      <p className="mt-4 text-sm">
-        <a href="/api/admin/export" className="underline hover:text-gold">
+      <p className="mt-4">
+        <a href="/api/admin/export" className="inline-flex min-h-11 items-center text-sm underline hover:text-gold">
           Download inventory CSV
         </a>
       </p>
       {pieces.length === 0 ? (
         <p className="mt-8 text-sm">
           {q || status ? "No pieces match that search." : "No pieces yet."}{" "}
-          <Link href="/admin/pieces/new" className="underline hover:text-gold">
+          <Link href="/admin/pieces/new" className="inline-flex min-h-11 items-center underline hover:text-gold">
             Add one
           </Link>
           .
@@ -55,27 +55,31 @@ export default async function PiecesPage({
         <ul className="mt-6 divide-y divide-black/10 border-y border-black/10">
           {pieces.map((piece) => (
             <li key={piece.id}>
-              <Link href={`/admin/pieces/${piece.id}`} className="flex items-center gap-4 py-3 hover:text-gold">
+              <Link href={`/admin/pieces/${piece.id}`} className="flex min-h-16 items-center gap-3 py-3 hover:text-gold">
                 {piece.cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/media/${piece.cover}`}
+                    src={`/api/media/${piece.cover}?w=480`}
                     alt=""
+                    width={480}
+                    height={480}
+                    loading="lazy"
+                    decoding="async"
                     className="h-16 w-16 shrink-0 object-cover"
                   />
                 ) : (
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center border border-gold text-[0.6rem] tracking-[0.12em] uppercase">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center border border-gold text-xs uppercase">
                     No photo
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate">{piece.title}</span>
+                  <span className="block truncate text-base">{piece.title}</span>
                   <span className="block text-sm text-black">
                     {piece.sku}
                     {piece.category ? ` · ${piece.category}` : ""} · {formatPrice(piece)}
                   </span>
                 </span>
-                <span className="shrink-0 text-right text-[0.65rem] tracking-[0.14em] text-black uppercase">
+                <span className="max-w-24 shrink-0 text-right text-xs leading-4 text-black uppercase">
                   {piece.is_sample ? "Sample · " : ""}
                   {statusLabel(piece.status)}
                 </span>

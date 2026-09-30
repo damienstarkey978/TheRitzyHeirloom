@@ -7,7 +7,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
       <button
         type="button"
         onClick={() => reset()}
-        className="mt-6 border border-gold px-4 py-3 text-[0.7rem] tracking-[0.18em] uppercase"
+        className="mt-6 inline-flex min-h-11 items-center justify-center border border-gold px-4 text-sm"
       >
         Try again
       </button>

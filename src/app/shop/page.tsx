@@ -19,15 +19,18 @@ export default async function ShopPage({
       title="Shop"
       lead="Published pieces on the floor. Drafts stay in the shop desk until they are published."
     >
-      <nav aria-label="Categories" className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-        <Link href="/shop" className={category ? "underline hover:text-gold" : "text-gold"}>
+      <nav aria-label="Categories" className="mt-6 flex flex-wrap gap-2 text-sm">
+        <Link
+          href="/shop"
+          className={`inline-flex min-h-11 items-center px-3 ${category ? "underline hover:text-gold" : "text-gold"}`}
+        >
           All
         </Link>
         {PIECE_CATEGORIES.map((name) => (
           <Link
             key={name}
             href={`/shop?category=${encodeURIComponent(name)}`}
-            className={category === name ? "text-gold" : "underline hover:text-gold"}
+            className={`inline-flex min-h-11 items-center px-3 ${category === name ? "text-gold" : "underline hover:text-gold"}`}
           >
             {name}
           </Link>

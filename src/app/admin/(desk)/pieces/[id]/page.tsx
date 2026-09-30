@@ -106,7 +106,7 @@ export default async function EditPiecePage({
           Leave the price blank unless it is the real asking price. A suggested range never replaces this.
         </p>
         <label className="block">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Category</span>
+          <span className="text-xs tracking-wide uppercase">Category</span>
           <select className={fieldClass} name="category" defaultValue={piece.category}>
             <option value="">Choose a category</option>
             {PIECE_CATEGORIES.map((category) => (
@@ -123,11 +123,11 @@ export default async function EditPiecePage({
         <Field label="Condition" name="condition" defaultValue={piece.condition} placeholder="Good, with wear" />
         <Field label="Tags" name="tags" defaultValue={piece.tags} placeholder="gilt, french, pair" />
         <Field label="Cost" name="cost" inputMode="decimal" placeholder="What you paid, optional" defaultValue={piece.cost_cents == null ? "" : (piece.cost_cents / 100).toFixed(2)} />
-        <Field label="Quantity" name="quantity" defaultValue={String(piece.quantity)} />
+        <Field label="Quantity" name="quantity" inputMode="numeric" defaultValue={String(piece.quantity)} />
         <Field label="Barcode" name="barcode" defaultValue={piece.barcode} />
         <Field label="Location" name="location" defaultValue={piece.location} placeholder="Shop floor, back room" />
         <label className="block">
-          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Status</span>
+          <span className="text-xs tracking-wide uppercase">Status</span>
           <select className={fieldClass} name="status" defaultValue={piece.status}>
             {PIECE_STATUSES.map((value) => (
               <option key={value} value={value}>
@@ -166,8 +166,12 @@ export default async function EditPiecePage({
             <li key={photo.id} className="border border-black/15 p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`/api/media/${photo.filename}`}
+                src={`/api/media/${photo.filename}?w=800`}
                 alt={`${piece.title}, photo ${index + 1}`}
+                width={800}
+                height={600}
+                loading="lazy"
+                decoding="async"
                 className="aspect-[4/3] w-full max-w-md object-cover"
               />
               <div className="mt-3 flex flex-wrap gap-2">
@@ -205,13 +209,13 @@ export default async function EditPiecePage({
           <CsrfField />
           <input type="hidden" name="id" value={piece.id} />
           <label className="block">
-            <span className="text-[0.65rem] tracking-[0.16em] uppercase">Add photos</span>
+            <span className="text-xs tracking-wide uppercase">Add photos</span>
+            <span className="mt-1 block text-sm leading-6">Take one, or choose several from the camera roll.</span>
             <input
-              className={`${fieldClass} file:mr-3 file:border-0 file:bg-transparent file:text-sm`}
+              className={`${fieldClass} file:mr-3 file:border-0 file:bg-transparent file:text-base`}
               type="file"
               name="photos"
               accept="image/*"
-              capture="environment"
               multiple
             />
           </label>

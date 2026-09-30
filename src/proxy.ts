@@ -23,6 +23,9 @@ function continueWith(request: NextRequest, redirectTo?: URL) {
   if (request.nextUrl.pathname === "/gate" || request.nextUrl.pathname.startsWith("/gate/")) {
     requestHeaders.set("x-ritzy-gate", "1");
   }
+  if (request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")) {
+    requestHeaders.set("x-ritzy-desk", "1");
+  }
   const response = redirectTo
     ? NextResponse.redirect(redirectTo)
     : NextResponse.next({ request: { headers: requestHeaders } });
@@ -43,7 +46,11 @@ function gateExempt(pathname: string) {
     pathname.startsWith("/gate/") ||
     pathname === "/api/gate" ||
     pathname === "/api/pos/inventory" ||
-    pathname.startsWith("/api/pos/")
+    pathname.startsWith("/api/pos/") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/icon-192.png" ||
+    pathname === "/icon-512.png" ||
+    pathname === "/apple-touch-icon.png"
   );
 }
 
@@ -63,6 +70,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // The wordmark has to load on the password page. Piece photos live under /api/media and stay behind the gate.
-    "/((?!_next/static|_next/image|logo\\.jpg|favicon\\.ico).*)",
+    "/((?!_next/static|_next/image|logo\\.jpg|logo-960\\.jpg|favicon\\.ico).*)",
   ],
 };

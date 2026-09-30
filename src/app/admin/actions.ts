@@ -9,10 +9,10 @@ import { searchAskingByImage, searchAskingPrices } from "@/lib/ebay";
 import { researchPiece } from "@/lib/research";
 import { requireUser } from "@/lib/session";
 import { csrfMatches, CSRF_COOKIE } from "@/lib/security";
+import { createPieceWithPhotos } from "@/lib/drafts";
 import {
   addPiecePhoto,
   changePassword,
-  createDraft,
   deletePiece,
   getLookup,
   getPiece,
@@ -58,29 +58,12 @@ export async function createPieceFromPhotos(
     return { error: "This page expired. Reload it and try again." };
   }
   const files = filesFrom(formData);
-  const limit = maxUploadBytes();
-  if (files.length === 0) return { error: "Choose at least one photo." };
-  if (files.length > MAX_UPLOAD_FILES) return { error: "Choose up to 8 photos at a time." };
-  if (files.some((file) => file.size > limit)) {
-    return { error: "Each photo needs to be under 20MB." };
-  }
-  const id = createDraft();
-  let saved = 0;
-  for (const file of files) {
-    try {
-      const filename = await saveJpeg(Buffer.from(await file.arrayBuffer()));
-      addPiecePhoto(id, filename);
-      saved += 1;
-    } catch {
-      /* skip a file that cannot be read and report if none survive */
-    }
-  }
-  if (saved === 0) {
-    deletePiece(id);
-    return { error: "Those photos could not be saved. Try a JPEG or PNG." };
-  }
-  refresh(id);
-  redirect(`/admin/pieces/${id}`);
+  const buffers: Buffer[] = [];
+  for (const file of files) buffers.push(Buffer.from(await file.arrayBuffer()));
+  const result = await createPieceWithPhotos(buffers);
+  if ("error" in result) return { error: result.error };
+  refresh(result.id);
+  redirect(`/admin/pieces/${result.id}`);
 }
 
 export async function updatePieceAction(formData: FormData) {

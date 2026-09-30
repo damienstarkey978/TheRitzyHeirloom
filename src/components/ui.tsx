@@ -21,18 +21,18 @@ export function PageShell({
     <main className="relative px-4 py-6 sm:px-8 sm:py-8">
       <div aria-hidden="true" className="pointer-events-none absolute inset-3 border border-gold sm:inset-5" />
       <div className="relative mx-auto w-full max-w-5xl pb-10">
-        <Link href="/" className="inline-block">
+        <Link href="/" className="inline-flex min-h-11 items-center">
           <Image
-            src={`${basePath}/logo.jpg`}
+            src={`${basePath}/logo-960.jpg`}
             alt="The Ritzy Heirloom"
-            width={1499}
-            height={468}
+            width={960}
+            height={300}
             className="h-auto w-36 sm:w-48"
           />
         </Link>
         <div aria-hidden="true" className="mt-3 h-px w-10 bg-gold" />
         <h1 className="mt-6 text-2xl sm:text-3xl">{title}</h1>
-        {lead ? <p className="mt-3 max-w-2xl text-sm leading-6 sm:text-base sm:leading-7">{lead}</p> : null}
+        {lead ? <p className="mt-3 max-w-2xl text-base leading-6">{lead}</p> : null}
         {children}
       </div>
     </main>
@@ -56,11 +56,11 @@ export function Field({
   autoComplete?: string;
   placeholder?: string;
   defaultValue?: string;
-  inputMode?: "decimal" | "email" | "text";
+  inputMode?: "decimal" | "email" | "text" | "numeric";
 }) {
   return (
     <label className="block">
-      <span className="text-[0.65rem] tracking-[0.16em] uppercase">{label}</span>
+      <span className="text-xs tracking-wide uppercase">{label}</span>
       <input
         className={fieldClass}
         name={name}
@@ -69,7 +69,7 @@ export function Field({
         autoComplete={autoComplete}
         placeholder={placeholder}
         defaultValue={defaultValue}
-        inputMode={inputMode}
+        inputMode={inputMode ?? (type === "email" ? "email" : undefined)}
       />
     </label>
   );
@@ -92,7 +92,7 @@ export function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="text-[0.65rem] tracking-[0.16em] uppercase">{label}</span>
+      <span className="text-xs tracking-wide uppercase">{label}</span>
       <textarea
         className={fieldClass}
         name={name}
@@ -165,8 +165,12 @@ export function PieceCard({ piece, large = false }: { piece: PieceCard; large?: 
             // Photos are resized files served by this app, not static imports.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`/api/media/${piece.cover}`}
+              src={`/api/media/${piece.cover}?w=800`}
               alt={piece.is_sample ? `Sample image for ${piece.title}` : piece.title}
+              width={800}
+              height={large ? 1000 : 600}
+              loading="lazy"
+              decoding="async"
               className={`${aspect} w-full object-cover`}
             />
           ) : (
