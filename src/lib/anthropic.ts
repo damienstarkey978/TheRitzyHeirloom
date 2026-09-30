@@ -242,6 +242,9 @@ export function anthropicFailureMessage(status: number, body: string) {
     return "The AI lookup is out of credit.";
   }
   if (status === 401 || type === "authentication_error") return "The AI key was rejected.";
+  if (/web search is not enabled/i.test(message)) {
+    return "Web search is turned off for this AI key. Turn it on in the Anthropic console, then try again.";
+  }
   return "The AI lookup did not respond.";
 }
 

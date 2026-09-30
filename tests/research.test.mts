@@ -149,6 +149,17 @@ describe("research", { concurrency: 1 }, () => {
       },
     );
     assert.equal(credit.note, "The AI lookup is out of credit.");
+    const searchOff = await researchPiece(
+      { title: "Frame", notes: "" },
+      {
+        fetch: async () =>
+          new Response(
+            JSON.stringify({ error: { type: "invalid_request_error", message: "Web search is not enabled for this organization." } }),
+            { status: 400 },
+          ),
+      },
+    );
+    assert.equal(searchOff.note, "Web search is turned off for this AI key. Turn it on in the Anthropic console, then try again.");
     delete process.env.AI_API_KEY;
   });
 
