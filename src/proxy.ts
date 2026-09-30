@@ -8,6 +8,7 @@ import {
   GATE_COOKIE,
   gateCookieMatches,
   newCsrfToken,
+  publicUrl,
   SESSION_COOKIE,
 } from "@/lib/security";
 
@@ -43,12 +44,12 @@ function gateExempt(pathname: string) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (sitePassword() && !gateExempt(pathname) && !gateCookieMatches(request.cookies.get(GATE_COOKIE)?.value)) {
-    const gate = new URL("/gate", request.url);
+    const gate = publicUrl(request, "/gate");
     if (pathname !== "/") gate.searchParams.set("next", pathname);
     return continueWith(request, gate);
   }
   if (adminNeedsLogin(pathname) && !request.cookies.get(SESSION_COOKIE)?.value) {
-    return continueWith(request, new URL("/admin/login", request.url));
+    return continueWith(request, publicUrl(request, "/admin/login"));
   }
   return continueWith(request);
 }

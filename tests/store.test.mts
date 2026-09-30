@@ -183,6 +183,17 @@ describe("store", { concurrency: 1 }, () => {
     assert.equal(store.tooManyLoginFailures(key), false);
   });
 
+  test("redirects keep the public host", () => {
+    const request = new Request("http://0.0.0.0:4765/api/gate", {
+      headers: {
+        host: "0.0.0.0:4765",
+        "x-forwarded-host": "ritzy-heirloom-dev.fly.dev",
+        "x-forwarded-proto": "https",
+      },
+    });
+    assert.equal(security.publicUrl(request, "/shop").href, "https://ritzy-heirloom-dev.fly.dev/shop");
+  });
+
   test("csrf rejects a missing or mismatched token, and the site gate checks its cookie", () => {
     assert.equal(security.csrfMatches("abc", "abc"), true);
     assert.equal(security.csrfMatches("abc", "abd"), false);

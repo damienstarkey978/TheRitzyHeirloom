@@ -6,6 +6,7 @@ import {
   csrfMatches,
   CSRF_COOKIE,
   GATE_COOKIE,
+  publicUrl,
   safeNextPath,
   sitePasswordMatches,
 } from "@/lib/security";
@@ -15,15 +16,15 @@ export async function POST(request: Request) {
   const jar = await cookies();
   const next = safeNextPath(String(form.get("next") ?? "/"));
   if (!csrfMatches(jar.get(CSRF_COOKIE)?.value, String(form.get("csrf") ?? ""))) {
-    return NextResponse.redirect(new URL("/gate?error=1", request.url), 303);
+    return NextResponse.redirect(publicUrl(request, "/gate?error=1"), 303);
   }
   if (!sitePassword()) {
-    return NextResponse.redirect(new URL("/", request.url), 303);
+    return NextResponse.redirect(publicUrl(request, "/"), 303);
   }
   if (!sitePasswordMatches(String(form.get("password") ?? ""))) {
-    return NextResponse.redirect(new URL("/gate?error=1", request.url), 303);
+    return NextResponse.redirect(publicUrl(request, "/gate?error=1"), 303);
   }
-  const response = NextResponse.redirect(new URL(next, request.url), 303);
+  const response = NextResponse.redirect(publicUrl(request, next), 303);
   response.cookies.set(GATE_COOKIE, gateToken(), cookieOptions(60 * 60 * 24 * 14));
   return response;
 }

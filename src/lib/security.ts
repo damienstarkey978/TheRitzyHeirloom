@@ -55,6 +55,19 @@ export function clientAddress(forwardedFor: string | null, flyClientIp: string |
   return first;
 }
 
+export function publicUrl(request: Request, path: string) {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ?? "";
+  const hostHeader = request.headers.get("host")?.trim() ?? "";
+  const host = [forwardedHost, hostHeader].find(
+    (value) => value && !value.startsWith("0.0.0.0"),
+  );
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const local = host?.startsWith("localhost") || host?.startsWith("127.0.0.1");
+  const proto = forwardedProto || (local ? "http" : "https");
+  if (host) return new URL(path, `${proto}://${host}`);
+  return new URL(path, request.url);
+}
+
 export function safeNextPath(raw: string) {
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("://") || raw.includes("\\")) {
     return "/";

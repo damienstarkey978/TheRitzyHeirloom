@@ -9,7 +9,7 @@ import {
   startSession,
   tooManyLoginFailures,
 } from "@/lib/store";
-import { clientAddress, cookieOptions, csrfMatches, CSRF_COOKIE } from "@/lib/security";
+import { clientAddress, cookieOptions, csrfMatches, CSRF_COOKIE, publicUrl } from "@/lib/security";
 
 export async function POST(request: Request) {
   const form = await request.formData();
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     clientAddress(request.headers.get("x-forwarded-for"), request.headers.get("fly-client-ip")),
     username,
   );
-  const denied = () => NextResponse.redirect(new URL("/admin/login?error=1", request.url), 303);
+  const denied = () => NextResponse.redirect(publicUrl(request, "/admin/login?error=1"), 303);
   if (!csrfMatches(jar.get(CSRF_COOKIE)?.value, String(form.get("csrf") ?? ""))) {
     return denied();
   }
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     return denied();
   }
   clearLoginFailures(key);
-  const response = NextResponse.redirect(new URL("/admin", request.url), 303);
+  const response = NextResponse.redirect(publicUrl(request, "/admin"), 303);
   response.cookies.set(SESSION_COOKIE, token, cookieOptions(SESSION_MAX_AGE));
   return response;
 }

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { maxUploadBytes } from "@/lib/config";
 import { sendSubmissionNotice } from "@/lib/mail";
-import { csrfMatches, CSRF_COOKIE } from "@/lib/security";
+import { csrfMatches, CSRF_COOKIE, publicUrl } from "@/lib/security";
 import { addSubmissionPhoto, insertSubmission, saveJpeg, validateSubmission } from "@/lib/store";
 
 function safeNext(raw: string) {
@@ -16,7 +16,7 @@ function safeNext(raw: string) {
 }
 
 function fail(request: Request, next: string, error: string) {
-  return NextResponse.redirect(new URL(`${next}?error=${encodeURIComponent(error)}`, request.url), 303);
+  return NextResponse.redirect(publicUrl(request, `${next}?error=${encodeURIComponent(error)}`), 303);
 }
 
 export async function POST(request: Request) {
@@ -63,5 +63,5 @@ export async function POST(request: Request) {
     projectType: parsed.value.projectType,
     preferredTime: parsed.value.preferredTime,
   });
-  return NextResponse.redirect(new URL(`${next}?saved=1`, request.url), 303);
+  return NextResponse.redirect(publicUrl(request, `${next}?saved=1`), 303);
 }
