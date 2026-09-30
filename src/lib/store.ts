@@ -145,7 +145,7 @@ function ensureAdmin(db: DatabaseSync) {
   const password = process.env.ADMIN_PASSWORD ?? "";
   if (!username || !password) return;
   const existing = one<{ id: number; password_hash: string }>(
-    db.prepare("SELECT id, password_hash FROM users WHERE username = ?").get(username),
+    db.prepare("SELECT id, password_hash FROM users WHERE username = ? COLLATE NOCASE").get(username),
   );
   if (existing) return;
   db.prepare("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)").run(
@@ -409,7 +409,7 @@ export function parsePriceInput(raw: string): { ask: boolean; cents: number | nu
 export function verifyLogin(username: string, password: string) {
   const db = getDb();
   const row = one<{ id: number; username: string; password_hash: string }>(
-    db.prepare("SELECT id, username, password_hash FROM users WHERE username = ?").get(username),
+    db.prepare("SELECT id, username, password_hash FROM users WHERE username = ? COLLATE NOCASE").get(username.trim()),
   );
   const ok = verifyPassword(password, row?.password_hash ?? dummyPasswordHash());
   if (!row || !ok) return null;
@@ -457,7 +457,7 @@ export function endSession(token: string) {
 }
 
 export function loginFailureKey(ip: string, username: string) {
-  return `${ip.slice(0, 80)}\n${username.trim().slice(0, 200)}`;
+  return `${ip.slice(0, 80)}\n${username.trim().toLowerCase().slice(0, 200)}`;
 }
 
 export function tooManyLoginFailures(key: string) {

@@ -45,9 +45,14 @@ describe("store", { concurrency: 1 }, () => {
 
   test("login session", () => {
     assert.equal(store.startSession("mindy", "not-the-password"), null);
-    const token = store.startSession("mindy", password);
+    const token = store.startSession("Mindy", password);
     assert.ok(token);
     assert.equal(store.getUserByToken(token ?? undefined)?.username, "mindy");
+    store.endSession(token ?? "");
+    const lower = store.startSession("mindy", password);
+    assert.ok(lower);
+    assert.equal(store.getUserByToken(lower ?? undefined)?.username, "mindy");
+    store.endSession(lower ?? "");
     store.endSession(token ?? "");
     assert.equal(store.getUserByToken(token ?? undefined), null);
   });
