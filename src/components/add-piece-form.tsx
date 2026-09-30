@@ -3,7 +3,7 @@
 import { useActionState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { createPieceFromPhotos } from "@/app/admin/actions";
-import { buttonClass } from "@/components/ui";
+import { buttonClass } from "@/components/styles";
 
 function PendingNote() {
   const { pending } = useFormStatus();
