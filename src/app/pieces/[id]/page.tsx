@@ -61,8 +61,12 @@ export default async function PiecePage({ params, searchParams }: PieceParams) {
             <p className="text-[0.7rem] tracking-[0.18em] text-gold uppercase">Sold</p>
           ) : null}
           <p className="mt-2 text-lg">{price}</p>
-          {piece.era ? <p className="mt-3 text-sm">Era: {piece.era}</p> : null}
+          {piece.category ? <p className="mt-3 text-sm">{piece.category}</p> : null}
+          {piece.maker ? <p className="mt-1 text-sm">Maker: {piece.maker}</p> : null}
+          {piece.era ? <p className="mt-1 text-sm">Era: {piece.era}</p> : null}
+          {piece.material ? <p className="mt-1 text-sm">Material: {piece.material}</p> : null}
           {piece.size ? <p className="mt-1 text-sm">Size: {piece.size}</p> : null}
+          {piece.condition ? <p className="mt-1 text-sm">Condition: {piece.condition}</p> : null}
           {piece.description ? <p className="mt-4 text-sm leading-6">{piece.description}</p> : null}
           {piece.story ? (
             <section className="mt-6">

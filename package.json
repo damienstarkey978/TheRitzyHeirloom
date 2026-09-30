@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port 4765",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/store.test.mts",
+    "test": "node --experimental-strip-types --test tests/*.mts",
     "backup": "node scripts/backup.mjs"
   },
   "dependencies": {

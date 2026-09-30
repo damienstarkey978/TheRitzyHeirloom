@@ -4,36 +4,43 @@ import { CsrfField } from "@/components/csrf-field";
 import { currentUser } from "@/lib/session";
 import { submissionCount } from "@/lib/store";
 
+const actionClass =
+  "flex min-h-12 items-center justify-center px-2 py-3 text-center text-sm font-medium";
+
 export default async function DeskLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   if (!user) redirect("/admin/login");
   const count = submissionCount();
   return (
     <div>
-      <div className="border-b border-black/10">
-        <nav
-          aria-label="Shop desk"
-          className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-[0.65rem] tracking-[0.16em] uppercase sm:px-8"
-        >
-          <Link href="/admin" className="hover:text-gold">
-            Inbox ({count})
-          </Link>
-          <Link href="/admin/pieces" className="hover:text-gold">
-            Pieces
-          </Link>
-          <Link href="/admin/pieces/new" className="hover:text-gold">
+      <div className="sticky top-0 z-20 border-b border-black/10 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-8">
+          <p className="text-sm">
+            Shop desk
+            <span className="text-black/70"> · {user.username}</span>
+          </p>
+          <div className="flex items-center gap-4 text-sm">
+            <Link href="/admin/password" className="underline hover:text-gold">
+              Password
+            </Link>
+            <form action="/api/admin/logout" method="post">
+              <CsrfField />
+              <button type="submit" className="underline hover:text-gold">
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
+        <nav aria-label="Shop desk" className="mx-auto grid max-w-5xl grid-cols-3 gap-2 px-4 pb-3 sm:px-8">
+          <Link href="/admin/pieces/new" className={`${actionClass} bg-gold text-white`}>
             Add piece
           </Link>
-          <Link href="/admin/password" className="hover:text-gold">
-            Password
+          <Link href="/admin/pieces" className={`${actionClass} border border-black/20`}>
+            Pieces
           </Link>
-          <span className="text-sm tracking-normal normal-case">Signed in as {user.username}</span>
-          <form action="/api/admin/logout" method="post" className="sm:ml-auto">
-            <CsrfField />
-            <button type="submit" className="tracking-[0.16em] uppercase hover:text-gold">
-              Sign out
-            </button>
-          </form>
+          <Link href="/admin/inbox" className={`${actionClass} border border-black/20`}>
+            Inbox ({count})
+          </Link>
         </nav>
       </div>
       {children}

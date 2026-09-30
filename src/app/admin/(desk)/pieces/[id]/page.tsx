@@ -10,7 +10,9 @@ import {
 } from "@/app/admin/actions";
 import { CsrfField } from "@/components/csrf-field";
 import { Field, PageShell, SubmitButton, TextArea, buttonClass, fieldClass, quietButtonClass } from "@/components/ui";
-import { formatPrice, getPiece } from "@/lib/store";
+import { ValueLookup } from "@/components/value-lookup";
+import { formatPrice, formatWhen, getPiece, listLookups, listPieceChanges } from "@/lib/store";
+import { PIECE_CATEGORIES, PIECE_STATUSES, statusLabel } from "@/lib/value";
 
 export const metadata: Metadata = { title: "Edit piece" };
 
@@ -24,7 +26,7 @@ export default async function EditPiecePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; lookup?: string }>;
 }) {
   const { id: rawId } = await params;
   const query = await searchParams;
@@ -32,6 +34,8 @@ export default async function EditPiecePage({
   if (!Number.isInteger(id) || id <= 0) notFound();
   const piece = getPiece(id);
   if (!piece) notFound();
+  const lookups = listLookups(id);
+  const changes = listPieceChanges(id, 8);
 
   return (
     <PageShell title={piece.title}>
@@ -53,9 +57,24 @@ export default async function EditPiecePage({
           Saved.
         </p>
       ) : null}
+      {query.lookup ? (
+        <p role="status" className="mt-4 border border-gold px-3 py-2 text-sm">
+          Lookup saved. Your price was left as you typed it.
+        </p>
+      ) : null}
       {query.error === "price" ? (
         <p role="alert" className="mt-4 border border-black px-3 py-2 text-sm">
           Enter a price like 125 or 125.50, or leave it blank to ask for price.
+        </p>
+      ) : null}
+      {query.error === "cost" ? (
+        <p role="alert" className="mt-4 border border-black px-3 py-2 text-sm">
+          Enter the cost like 40 or 40.00, or leave it blank.
+        </p>
+      ) : null}
+      {query.error === "quantity" ? (
+        <p role="alert" className="mt-4 border border-black px-3 py-2 text-sm">
+          Quantity needs to be a whole number.
         </p>
       ) : null}
       {query.error === "photo" || query.error === "photos" ? (
@@ -72,6 +91,7 @@ export default async function EditPiecePage({
       <form action={updatePieceAction} className="mt-6 flex max-w-xl flex-col gap-4">
         <CsrfField />
         <input type="hidden" name="id" value={piece.id} />
+        <p className="text-sm">SKU {piece.sku}. This number stays with the piece.</p>
         <Field label="Title" name="title" required defaultValue={piece.title} />
         <TextArea label="Description" name="description" defaultValue={piece.description} />
         <TextArea label="A short history" name="story" defaultValue={piece.story} />
@@ -82,27 +102,61 @@ export default async function EditPiecePage({
           placeholder="Leave blank to ask for price"
           defaultValue={priceValue(piece)}
         />
-        <p className="text-sm leading-6 text-black/80">Leave the price blank unless it is the real asking price.</p>
-        <Field label="Era" name="era" defaultValue={piece.era} />
-        <Field label="Size" name="size" defaultValue={piece.size} />
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            name="published"
-            defaultChecked={piece.published === 1}
-            className="size-4 accent-[#b07c28]"
-          />
-          Publish on the shop floor
+        <p className="text-sm leading-6 text-black/80">
+          Leave the price blank unless it is the real asking price. A suggested range never replaces this.
+        </p>
+        <label className="block">
+          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Category</span>
+          <select className={fieldClass} name="category" defaultValue={piece.category}>
+            <option value="">Choose a category</option>
+            {PIECE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </label>
-        <label className="flex items-center gap-3 text-sm">
-          <input type="checkbox" name="sold" defaultChecked={piece.sold === 1} className="size-4 accent-[#b07c28]" />
-          Mark sold
+        <Field label="Era" name="era" defaultValue={piece.era} />
+        <Field label="Maker" name="maker" defaultValue={piece.maker} />
+        <Field label="Material" name="material" defaultValue={piece.material} />
+        <Field label="Dimensions" name="dimensions" defaultValue={piece.dimensions || piece.size} />
+        <Field label="Condition" name="condition" defaultValue={piece.condition} placeholder="Good, with wear" />
+        <Field label="Tags" name="tags" defaultValue={piece.tags} placeholder="gilt, french, pair" />
+        <Field label="Cost" name="cost" inputMode="decimal" placeholder="What you paid, optional" defaultValue={piece.cost_cents == null ? "" : (piece.cost_cents / 100).toFixed(2)} />
+        <Field label="Quantity" name="quantity" defaultValue={String(piece.quantity)} />
+        <Field label="Barcode" name="barcode" defaultValue={piece.barcode} />
+        <Field label="Location" name="location" defaultValue={piece.location} placeholder="Shop floor, back room" />
+        <label className="block">
+          <span className="text-[0.65rem] tracking-[0.16em] uppercase">Status</span>
+          <select className={fieldClass} name="status" defaultValue={piece.status}>
+            {PIECE_STATUSES.map((value) => (
+              <option key={value} value={value}>
+                {statusLabel(value)}
+              </option>
+            ))}
+          </select>
         </label>
         <p className="text-sm leading-6 text-black/80">
-          Published sold pieces move to the sold shelf. Drafts stay hidden.
+          Draft and held stay off the floor. Available is on the floor. Sold moves to the sold shelf.
         </p>
         <SubmitButton>Save piece</SubmitButton>
       </form>
+
+      <ValueLookup piece={piece} lookups={lookups} />
+
+      {changes.length > 0 ? (
+        <section className="mt-10 max-w-xl">
+          <h2 className="text-[0.65rem] tracking-[0.18em] uppercase">Changes</h2>
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {changes.map((change) => (
+              <li key={change.id}>
+                {formatWhen(change.changed_at)} · {change.field_name}
+                {change.field_name === "created" ? ` ${change.new_value}` : ` → ${change.new_value || "cleared"}`}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="mt-10">
         <h2 className="text-[0.65rem] tracking-[0.18em] uppercase">Photos</h2>

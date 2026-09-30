@@ -38,7 +38,13 @@ function adminNeedsLogin(pathname: string) {
 }
 
 function gateExempt(pathname: string) {
-  return pathname === "/gate" || pathname.startsWith("/gate/") || pathname === "/api/gate";
+  return (
+    pathname === "/gate" ||
+    pathname.startsWith("/gate/") ||
+    pathname === "/api/gate" ||
+    pathname === "/api/pos/inventory" ||
+    pathname.startsWith("/api/pos/")
+  );
 }
 
 export function proxy(request: NextRequest) {

@@ -258,6 +258,64 @@ describe("store", { concurrency: 1 }, () => {
     process.env.RITZY_FILE_DRIVER = "local";
   });
 
+  test("sku stays put, held pieces stay off the floor, and a lookup does not rewrite the price", () => {
+    const id = store.createDraft();
+    const sku = `RH-${String(id).padStart(5, "0")}`;
+    assert.equal(store.getPiece(id)?.sku, sku);
+    store.updatePiece(id, { ...blank, title: "Gilt frame", published: true, category: "Fine art" });
+    assert.equal(store.getPiece(id)?.sku, sku);
+    assert.equal(store.getPiece(id)?.status, "available");
+    assert.equal(
+      store.listShopPieces("Fine art").some((piece) => piece.id === id),
+      true,
+    );
+    assert.equal(
+      store.listShopPieces("Jewelry").some((piece) => piece.id === id),
+      false,
+    );
+    assert.equal(
+      store.listAllPieces({ status: "available", q: "gilt" }).some((piece) => piece.id === id),
+      true,
+    );
+    store.updatePiece(id, { ...blank, title: "Gilt frame", status: "held" });
+    assert.equal(store.getPiece(id)?.status, "held");
+    assert.equal(
+      store.listShopPieces().some((piece) => piece.id === id),
+      false,
+    );
+    const changes = store.listPieceChanges(id);
+    assert.ok(changes.some((change) => change.field_name === "title" && change.new_value === "Gilt frame"));
+    store.insertLookup(id, {
+      query: "Gilt frame",
+      listings: [
+        { title: "A", url: "https://example.test/a", priceCents: 10000, currency: "USD", source: "keyword" },
+        { title: "B", url: "https://example.test/b", priceCents: 30000, currency: "USD", source: "keyword" },
+        { title: "C", url: "https://example.test/c", priceCents: 50000, currency: "USD", source: "image" },
+      ],
+      research: {
+        configured: false,
+        provider: "",
+        maker: "",
+        style: "",
+        era: "",
+        material: "",
+        history: "",
+        description: "",
+        confidence: "",
+        links: [],
+        note: "AI lookup is not set up.",
+      },
+      note: "Based on 3 current asking prices. These are not sold prices.",
+    });
+    const piece = store.getPiece(id);
+    assert.equal(piece?.price_cents, null);
+    assert.equal(piece?.ask_for_price, 1);
+    assert.equal(piece?.estimate_typical_cents, 30000);
+    assert.match(store.piecesToCsv(), new RegExp(sku));
+    store.updatePiece(id, { ...blank, title: 'Frame, "gilt"', status: "held" });
+    assert.match(store.piecesToCsv(), /"Frame, ""gilt"""/);
+  });
+
   test("a changed desk password stays after the environment password is read again", () => {
     const next = randomBytes(12).toString("hex");
     assert.equal(store.changePassword("mindy", "not-the-password", next), "current");

@@ -36,7 +36,11 @@ npm test
 
 Pages keep using the shop functions. `RITZY_DATABASE_DRIVER=sqlite` and `RITZY_FILE_DRIVER=local` are the working defaults. Any other driver name is refused, so a hosted database or object storage can be added later without rewriting the pages.
 
-Draft pieces stay off the shop, the sold shelf, and the lookbook until they are published.
+Draft pieces stay off the shop, the sold shelf, and the lookbook until they are published. Held pieces stay off the floor too. Available pieces are on the floor, and sold pieces move to the sold shelf.
+
+Each piece gets a stable SKU such as `RH-00007`. The pieces page can filter by status and search by title, SKU, maker, or tag. The shop floor can filter by category. **Look up value and history** on a draft reads current eBay asking prices and, when `AI_PROVIDER` and `AI_API_KEY` are set, a research draft. Asking prices are labeled as asking prices. The suggested range sits beside the price and does not replace it. A suggested description is saved only after you accept it. Lookup history stays on the piece.
+
+The read-only inventory API and the CSV columns are described in `docs/pos-integration.md`.
 
 `ADMIN_PASSWORD` creates the desk account the first time that username is missing. Changing the password in the desk is kept across restarts. If that password is lost, delete the user row, set `ADMIN_PASSWORD` again, and restart.
 
