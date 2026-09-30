@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 4721",
+    "dev": "next dev --hostname 0.0.0.0 --port 4765",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0 --port 4721",
-    "lint": "eslint"
+    "start": "next start --hostname 0.0.0.0 --port 4765",
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests/store.test.mts"
   },
   "dependencies": {
     "next": "16.3.6",

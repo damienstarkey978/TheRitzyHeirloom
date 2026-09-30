@@ -31,7 +31,7 @@ const offerings = [
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-dvh flex-col px-4 py-6 sm:px-8 sm:py-8">
+    <main className="relative flex min-h-[calc(100dvh-3.25rem)] flex-col px-4 py-6 sm:px-8 sm:py-8">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-3 border border-gold sm:inset-5"
